@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>期货合规案例数据库</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f0f2f5; min-height: 100vh; color: #1a1a2e;
+  }
+  .header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: white; padding: 16px 28px;
+    display: flex; align-items: center; gap: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3); flex-wrap: wrap;
+  }
+  .header-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, #e94560, #c23152);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .header h1 { font-size: 19px; font-weight: 600; letter-spacing: 1px; }
+  .header .sub { font-size: 12px; opacity: 0.65; margin-top: 1px; }
+  .header-badge {
+    margin-left: auto;
+    background: rgba(255,255,255,0.12);
+    border-radius: 20px; padding: 4px 14px;
+    font-size: 12px; display: flex; align-items: center; gap: 6px;
+  }
+  .stat-dot { width: 7px; height: 7px; background: #4ade80; border-radius: 50%; }
+  .main { display: flex; gap: 0; height: calc(100vh - 70px); }
+  .left-panel {
+    width: 380px; flex-shrink: 0;
+    background: white; border-right: 1px solid #e8eaf0;
+    display: flex; flex-direction: column;
+  }
+  .panel-section { padding: 18px 22px; border-bottom: 1px solid #f0f2f5; }
+  .panel-label {
+    font-size: 12px; font-weight: 600; color: #888;
+    letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px;
+  }
+  textarea#complaint {
+    width: 100%; height: 150px;
+    border: 1.5px solid #e0e4ef; border-radius: 10px;
+    padding: 12px 14px; font-size: 14px; line-height: 1.7;
+    resize: vertical; outline: none; transition: border-color 0.2s;
+    color: #1a1a2e; font-family: inherit;
+  }
+  textarea#complaint:focus { border-color: #e94560; }
+  textarea#complaint::placeholder { color: #aaa; }
+  .examples { display: flex; flex-direction: column; gap: 6px; }
+  .example-chip {
+    background: #f5f6fa; border: 1px solid #e8eaf0;
+    border-radius: 8px; padding: 9px 12px; font-size: 12px;
+    color: #555; cursor: pointer; transition: all 0.15s; line-height: 1.4;
+  }
+  .example-chip:hover { background: #fff0f3; border-color: #e94560; color: #e94560; }
+  .settings { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .setting-group { display: flex; align-items: center; gap: 8px; }
+  .setting-group label { font-size: 13px; color: #666; }
+  select.s-select {
+    border: 1.5px solid #e0e4ef; border-radius: 7px;
+    padding: 5px 8px; font-size: 13px; outline: none; cursor: pointer; color: #333;
+  }
+  .btn-search {
+    width: 100%;
+    background: linear-gradient(135deg, #e94560, #c23152);
+    color: white; border: none; border-radius: 10px;
+    padding: 12px; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 1px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-search:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(233,69,96,0.4); }
+  .btn-search:active { transform: translateY(0); }
+  .btn-search:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .stats-row { display: flex; gap: 8px; }
+  .stat-card {
+    flex: 1; background: #f8f9fc; border-radius: 8px;
+    padding: 10px 6px; text-align: center;
+  }
+  .stat-num { font-size: 18px; font-weight: 700; color: #e94560; }
+  .stat-label { font-size: 11px; color: #888; margin-top: 2px; }
+  .right-panel { flex: 1; display: flex; flex-direction: column; overflow-y: auto; min-height: 0; }
+  .empty-state {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; color: #aaa; gap: 14px;
+  }
+  .empty-icon { font-size: 60px; opacity: 0.3; }
+  .empty-text { font-size: 16px; }
+  .empty-sub { font-size: 13px; opacity: 0.7; }
+  .loading-state {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 18px;
+  }
+  .spinner {
+    width: 44px; height: 44px;
+    border: 4px solid #f0f2f5; border-top: 4px solid #e94560;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .result-container { flex: 1; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+  .advice-card {
+    background: linear-gradient(135deg, #fff5f7, #fff);
+    border: 1.5px solid #ffd6de; border-radius: 14px;
+    padding: 16px 18px; position: relative; overflow: hidden;
+  }
+  .advice-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 4px; background: linear-gradient(to bottom, #e94560, #c23152); border-radius: 2px;
+  }
+  .advice-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 14px; font-weight: 600; color: #e94560; }
+  .advice-body { font-size: 13px; line-height: 1.8; color: #333; white-space: pre-wrap; }
+  .matches-title { font-size: 13px; font-weight: 600; color: #888; display: flex; align-items: center; gap: 8px; }
+  .matches-count { background: #e94560; color: white; font-size: 11px; border-radius: 10px; padding: 1px 8px; }
+  .case-card {
+    background: white; border: 1.5px solid #e8eaf0;
+    border-radius: 12px; overflow: hidden;
+    transition: box-shadow 0.2s, border-color 0.2s;
+  }
+  .case-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-color: #e94560; }
+  .case-card-header {
+    padding: 14px 16px 12px; display: flex; align-items: flex-start; gap: 12px;
+    border-bottom: 1px solid #f0f2f5;
+  }
+  .score-badge {
+    flex-shrink: 0; width: 52px; height: 52px;
+    border-radius: 12px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; font-weight: 700;
+  }
+  .score-high { background: #fff0f3; color: #e94560; }
+  .score-mid { background: #fff8ee; color: #f97316; }
+  .score-low { background: #f5f6fa; color: #888; }
+  .score-num { font-size: 17px; line-height: 1; }
+  .score-pct { font-size: 10px; opacity: 0.7; }
+  .case-info { flex: 1; min-width: 0; }
+  .case-title { font-size: 14px; font-weight: 600; color: #1a1a2e; line-height: 1.4; margin-bottom: 6px; }
+  .case-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag { font-size: 11px; border-radius: 6px; padding: 2px 8px; font-weight: 500; }
+  .tag-main { background: #fff0f3; color: #e94560; }
+  .tag-sub { background: #eff6ff; color: #2563eb; }
+  .tag-source { background: #f0fdf4; color: #16a34a; }
+  .case-card-body { padding: 12px 16px; font-size: 13px; color: #555; }
+  .case-section { margin-bottom: 8px; }
+  .case-section:last-child { margin-bottom: 0; }
+  .case-section-label { font-size: 11px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+  .case-section-text { line-height: 1.6; color: #444; }
+  .penalty-text { color: #d97706; }
+  .case-expand-btn {
+    display: inline-block; font-size: 12px; color: #e94560; cursor: pointer;
+    background: none; border: none; padding: 2px 0; font-weight: 600; margin-top: 6px;
+  }
+  .case-expand-btn:hover { opacity: 0.8; }
+  .case-full-text { display: none; margin-top: 6px; line-height: 1.6; color: #444; }
+  .case-full-text.show { display: block; }
+  .case-card { cursor: pointer; }
+  .case-source-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: #2563eb; text-decoration: none;
+    margin-top: 8px; padding: 4px 0; font-weight: 500;
+  }
+  .case-source-link:hover { text-decoration: underline; color: #1d4ed8; }
+  .case-section-label-full {
+    font-size: 11px; font-weight: 600; color: #aaa;
+    letter-spacing: 0.5px; margin-bottom: 4px; padding-top: 8px; border-top: 1px dashed #eee;
+  }
+  .case-fulltext-content { white-space: pre-line; font-size: 12px; }
+  .case-source-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: #2563eb; text-decoration: none;
+    margin-top: 8px; padding: 4px 0; font-weight: 500;
+  }
+  .case-source-link:hover { text-decoration: underline; color: #1d4ed8; }
+  .case-section-label-full {
+    font-size: 11px; font-weight: 600; color: #aaa;
+    letter-spacing: 0.5px; margin-bottom: 4px; padding-top: 8px; border-top: 1px dashed #eee;
+  }
+  .case-fulltext-content { white-space: pre-line; font-size: 12px; }
+  .case-source-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: #2563eb; text-decoration: none;
+    margin-top: 8px; padding: 4px 0; font-weight: 500;
+  }
+  .case-source-link:hover { text-decoration: underline; color: #1d4ed8; }
+  .case-section-label-full {
+    font-size: 11px; font-weight: 600; color: #aaa;
+    letter-spacing: 0.5px; margin-bottom: 4px; padding-top: 8px; border-top: 1px dashed #eee;
+  }
+  .case-fulltext-content { white-space: pre-line; font-size: 12px; }
+  .case-source-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: #2563eb; text-decoration: none;
+    margin-top: 8px; padding: 4px 0; font-weight: 500;
+  }
+  .case-source-link:hover { text-decoration: underline; color: #1d4ed8; }
+  .case-section-label-full {
+    font-size: 11px; font-weight: 600; color: #aaa;
+    letter-spacing: 0.5px; margin-bottom: 4px; padding-top: 8px; border-top: 1px dashed #eee;
+  }
+  .case-fulltext-content { white-space: pre-line; font-size: 12px; }
+  .case-source-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: #2563eb; text-decoration: none;
+    margin-top: 8px; padding: 4px 0; font-weight: 500;
+  }
+  .case-source-link:hover { text-decoration: underline; color: #1d4ed8; }
+  .case-section-label-full {
+    font-size: 11px; font-weight: 600; color: #aaa;
+    letter-spacing: 0.5px; margin-bottom: 4px; padding-top: 8px; border-top: 1px dashed #eee;
+  }
+  .case-fulltext-content { white-space: pre-line; font-size: 12px; }
+  .case-source-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: #2563eb; text-decoration: none;
+    margin-top: 8px; padding: 4px 0; font-weight: 500;
+  }
+  .case-source-link:hover { text-decoration: underline; color: #1d4ed8; }
+  .case-section-label-full {
+    font-size: 11px; font-weight: 600; color: #aaa;
+    letter-spacing: 0.5px; margin-bottom: 4px; padding-top: 8px; border-top: 1px dashed #eee;
+  }
+  .case-fulltext-content { white-space: pre-line; font-size: 12px; }
+  .case-source-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: #2563eb; text-decoration: none;
+    margin-top: 8px; padding: 4px 0; font-weight: 500;
+  }
+  .case-source-link:hover { text-decoration: underline; color: #1d4ed8; }
+  .case-section-label-full {
+    font-size: 11px; font-weight: 600; color: #aaa;
+    letter-spacing: 0.5px; margin-bottom: 4px; padding-top: 8px; border-top: 1px dashed #eee;
+  }
+  .case-fulltext-content { white-space: pre-line; font-size: 12px; }
+  .case-source-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: #2563eb; text-decoration: none;
+    margin-top: 8px; padding: 4px 0; font-weight: 500;
+  }
+  .case-source-link:hover { text-decoration: underline; color: #1d4ed8; }
+  .case-section-label-full {
+    font-size: 11px; font-weight: 600; color: #aaa;
+    letter-spacing: 0.5px; margin-bottom: 4px; padding-top: 8px; border-top: 1px dashed #eee;
+  }
+  .case-fulltext-content { white-space: pre-line; font-size: 12px; }
+  .case-source-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: #2563eb; text-decoration: none;
+    margin-top: 8px; padding: 4px 0; font-weight: 500;
+  }
+  .case-source-link:hover { text-decoration: underline; color: #1d4ed8; }
+  .case-section-label-full {
+    font-size: 11px; font-weight: 600; color: #aaa;
+    letter-spacing: 0.5px; margin-bottom: 4px; padding-top: 8px; border-top: 1px dashed #eee;
+  }
+  .case-fulltext-content { white-space: pre-line; font-size: 12px; }
+  .case-source-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: #2563eb; text-decoration: none;
+    margin-top: 8px; padding: 4px 0; font-weight: 500;
+  }
+  .case-source-link:hover { text-decoration: underline; color: #1d4ed8; }
+  .case-section-label-full {
+    font-size: 11px; font-weight: 600; color: #aaa;
+    letter-spacing: 0.5px; margin-bottom: 4px; padding-top: 8px; border-top: 1px dashed #eee;
+  }
+  .case-fulltext-content { white-space: pre-line; font-size: 12px; }
+  .case-source-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: #2563eb; text-decoration: none;
+    margin-top: 8px; padding: 4px 0; font-weight: 500;
+  }
+  .case-source-link:hover { text-decoration: underline; color: #1d4ed8; }
+  .case-section-label-full {
+    font-size: 11px; font-weight: 600; color: #aaa;
+    letter-spacing: 0.5px; margin-bottom: 4px; padding-top: 8px; border-top: 1px dashed #eee;
+  }
+  .case-fulltext-content { white-space: pre-line; font-size: 12px; }
+  .case-source-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; color: #2563eb; text-decoration: none;
+    margin-top: 8px; padding: 4px 0; font-weight: 500;
+  }
+  .case-source-link:hover { text-decoration: underline; color: #1d4ed8; }
+  .case-section-label-full {
+    font-size: 11px; font-weight: 600; color: #aaa;
+    letter-spacing: 0.5px; margin-bottom: 4px; padding-top: 8px; border-top: 1px dashed #eee;
+  }
+  .case-fulltext-content { white-space: pre-line; font-size: 12px; }
+  .right-panel::-webkit-scrollbar { width: 6px; }
+  .right-panel::-webkit-scrollbar-track { background: transparent; }
+  .right-panel::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
+  .right-panel::-webkit-scrollbar-thumb:hover { background: #bbb; }
+  .no-result {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 60px 20px; color: #aaa; gap: 12px;
+  }
+  .no-result-icon { font-size: 48px; opacity: 0.3; }
+  @media (max-width: 768px) {
+    .main { flex-direction: column; height: auto; }
+    .left-panel { width: 100%; flex-shrink: 0; }
+    .right-panel { min-height: 400px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  }
+  /* ===== 热点速递 ===== */
+  .hot-section { padding: 0; }
+  .hot-section-header {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 15px; font-weight: 600; color: #e94560;
+    padding-bottom: 12px; border-bottom: 2px solid #ffe0e6;
+    margin-bottom: 16px;
+  }
+  .hot-section-header .hot-count {
+    margin-left: auto; font-size: 12px; color: #888;
+    background: #f5f6fa; padding: 2px 8px; border-radius: 10px;
+  }
+  .hot-news-list {
+    display: flex; flex-direction: column; gap: 10px;
+    max-height: calc(100vh - 250px); overflow-y: auto;
+    padding-right: 4px;
+  }
+  .hot-news-list::-webkit-scrollbar { width: 4px; }
+  .hot-news-list::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+  .hot-news-item {
+    background: white; border: 1.5px solid #f0f2f5;
+    border-radius: 10px; padding: 14px 16px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .hot-news-item:hover { border-color: #e94560; box-shadow: 0 2px 12px rgba(233,69,96,0.08); }
+  .hot-news-item-header { display: flex; align-items: flex-start; gap: 10px; }
+  .hot-news-item-number {
+    flex-shrink: 0; width: 26px; height: 26px;
+    background: linear-gradient(135deg, #e94560, #c23152);
+    color: white; border-radius: 50%; font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .hot-news-item-number.old { background: #bbb; }
+  .hot-news-item-info { flex: 1; min-width: 0; }
+  .hot-news-item-title {
+    font-size: 14px; font-weight: 600; color: #1a1a2e;
+    line-height: 1.5; margin-bottom: 6px;
+  }
+  .hot-news-item-meta {
+    display: flex; gap: 10px; align-items: center;
+    font-size: 11px; color: #999; flex-wrap: wrap;
+  }
+  .new-badge {
+    background: #e94560; color: white;
+    font-size: 10px; padding: 0px 7px; border-radius: 3px;
+    font-weight: 700; letter-spacing: 0.5px;
+  }
+  .hot-news-item-meta .tag-sm {
+    background: #f0f2f5; color: #666;
+    font-size: 10px; padding: 1px 7px; border-radius: 4px;
+  }
+  .hot-news-item-desc {
+    font-size: 12px; color: #777; margin-top: 8px;
+    line-height: 1.6;
+    display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .view-tabs {
+    display: flex; gap: 0; padding: 12px 24px 0 24px;
+    background: white; border-bottom: 1px solid #f0f2f5;
+  }
+  .view-tab {
+    padding: 8px 16px; font-size: 13px; font-weight: 500;
+    border: none; background: transparent; color: #888;
+    cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all 0.15s; margin-bottom: -1px;
+  }
+  .view-tab:hover { color: #e94560; }
+  .view-tab.active { color: #e94560; border-bottom-color: #e94560; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-icon">🎯</div>
+  <div>
+    <h1>期货合规案例数据库</h1>
+    <div class="sub">输入客户投诉 → 关键词匹配历史案例 → 辅助参考</div>
+  </div>
+  <div class="header-badge">
+    <div class="stat-dot"></div>
+    <span id="caseCount">N条案例</span>
+  </div>
+</div>
+
+<div class="main">
+  <div class="left-panel">
+    <div class="panel-section">
+      <div class="panel-label">客户投诉内容</div>
+      <textarea id="complaint" placeholder="输入客户投诉的关键信息，例如：&#10;客户反映手续费收取标准不合理，要求退还多收费用..."></textarea>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">快速示例</div>
+      <div class="examples">
+        <div class="example-chip" onclick="fillExample(this)">💰 客户反映手续费收取标准不合理，比市场同类产品高，要求退还多收的费用</div>
+        <div class="example-chip" onclick="fillExample(this)">⚡ 强平价格与成交价格不符，客户认为公司操作有问题，要求说明</div>
+        <div class="example-chip" onclick="fillExample(this)">📱 客户反映APP交易系统在行情剧烈波动时频繁卡顿，导致委托失败造成损失</div>
+        <div class="example-chip" onclick="fillExample(this)">📋 客户不了解强平规则，账户被强平后感到突然，认为公司未尽告知义务</div>
+        <div class="example-chip" onclick="fillExample(this)">👤 业务员态度差，客户反映多次咨询问题未获解答，服务体验极差</div>
+      </div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">匹配设置</div>
+      <div class="settings">
+        <div class="setting-group">
+          <label>返回数量</label>
+          <select class="s-select" id="topK">
+            <option value="3">3条</option>
+            <option value="5" selected>5条</option>
+            <option value="8">8条</option>
+            <option value="10">10条</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="panel-section">
+      <button class="btn-search" onclick="doSearch()">
+        <span>🔍</span><span>开始匹配</span>
+      </button>
+    </div>
+    <div class="panel-section">
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-num" id="statTotal">143</div>
+          <div class="stat-label">案例总数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="statCategories">5</div>
+          <div class="stat-label">投诉分类</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="statMatched">--</div>
+          <div class="stat-label">本次匹配</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="right-panel" id="rightPanel">
+    <div class="hot-section" style="padding:24px;">
+      <div class="hot-section-header">
+        🔥 热点速递
+        <span class="hot-count" id="hotCount"></span>
+      </div>
+      <div class="hot-news-list" id="hotNewsList">
+        <div style="text-align:center;color:#aaa;padding:40px;">加载中...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== 案例数据 (自动生成) ==========
+const CASES = __CASES_DATA__;;
+// ========== TF-IDF 搜索引擎 ==========
+const STOPWORDS = new Set([
+  "的","了","在","是","我","有","和","就","不","人","都","一","一个","上","也","很","到",
+  "说","要","去","你","会","着","没有","看","好","自己","这","那","里","来","他","她","它",
+  "们","对","但","如果","因为","所以","这个","那个","可以","已经","进行","通过","根据",
+  "关于","以及","或者","等等","方面","情况","问题","处理","客户","投诉","公司","期货",
+  "相关","规定","违规","违反","行为","涉及","被","由","为","其",
+]);
+
+function tokenize(text) {
+  if (!text) return [];
+  text = text.replace(/[^\u4e00-\u9fff\u0041-\u007a\u0030-\u0039]/g, ' ').toLowerCase();
+  var words = [];
+  for (var i = 0; i < text.length; i++) {
+    var c = text[i];
+    if (c >= '\u4e00' && c <= '\u9fff' && !STOPWORDS.has(c)) words.push(c);
+  }
+  var chars = [];
+  for (var j = 0; j < text.length; j++) {
+    if (text[j] >= '\u4e00' && text[j] <= '\u9fff') chars.push(text[j]);
+  }
+  for (var k = 0; k < chars.length - 1; k++) {
+    var bg = chars[k] + chars[k+1];
+    if (!STOPWORDS.has(bg)) words.push(bg);
+  }
+  return words;
+}
+
+// Build index
+var docTexts = CASES.map(function(c) {
+  return [c.title, c.summary, c.violation, c.keywords].filter(Boolean).join(' ');
+});
+var N = CASES.length;
+
+var df = {};
+docTexts.forEach(function(text) {
+  var terms = {};
+  tokenize(text).forEach(function(t) { terms[t] = true; });
+  Object.keys(terms).forEach(function(t) { df[t] = (df[t] || 0) + 1; });
+});
+
+var idf = {};
+Object.keys(df).forEach(function(t) {
+  idf[t] = Math.log((N + 1) / (df[t] + 1)) + 1;
+});
+
+var docVectors = docTexts.map(function(text) {
+  var tokens = tokenize(text);
+  var tf = {};
+  tokens.forEach(function(t) { tf[t] = (tf[t] || 0) + 1; });
+  var total = tokens.length || 1;
+  var vec = {};
+  Object.keys(tf).forEach(function(t) {
+    vec[t] = (tf[t] / total) * (idf[t] || 1);
+  });
+  return vec;
+});
+
+function cosine(a, b) {
+  var dot = 0, na = 0, nb = 0;
+  var keys = {};
+  Object.keys(a).forEach(function(k) { keys[k] = 1; });
+  Object.keys(b).forEach(function(k) { keys[k] = 1; });
+  Object.keys(keys).forEach(function(k) {
+    var va = a[k] || 0, vb = b[k] || 0;
+    dot += va * vb;
+    na += va * va;
+    nb += vb * vb;
+  });
+  if (na === 0 || nb === 0) return 0;
+  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
+function search(query, topK) {
+  var tokens = tokenize(query);
+  var tf = {};
+  tokens.forEach(function(t) { tf[t] = (tf[t] || 0) + 1; });
+  var total = tokens.length || 1;
+  var qVec = {};
+  Object.keys(tf).forEach(function(t) {
+    qVec[t] = (tf[t] / total) * (idf[t] || 1);
+  });
+  var scores = [];
+  for (var i = 0; i < docVectors.length; i++) {
+    scores.push({score: cosine(qVec, docVectors[i]), index: i});
+  }
+  scores.sort(function(a, b) { return b.score - a.score; });
+  return scores.slice(0, topK).filter(function(s) { return s.score > 0.005; });
+}
+
+// ========== 建议生成 ==========
+function generateAdvice(complaint, topMatch) {
+  var cat = topMatch ? topMatch.main_category : '';
+  var tips = {
+    '\u8d39\u7528\u4e89\u8bae': '\u624b\u7eed\u8d39/\u8d39\u7387\u4e89\u8bae\u7c7b\u6295\u8bc9\uff0c\u5efa\u8bae\uff1a\n1. \u6838\u5b9e\u5ba2\u6237\u5f53\u524d\u8d39\u7387\u53ca\u5386\u53f2\u6536\u53d6\u660e\u7ec6\n2. \u5bf9\u7167\u5f00\u6237\u65f6\u7b7e\u7f72\u7684\u534f\u8bae\u548c\u8d39\u7387\u516c\u793a\n3. \u5982\u786e\u6709\u591a\u6536\uff0c\u534f\u5546\u9000\u8fd8\u65b9\u6848\u5e76\u4e66\u9762\u786e\u8ba4\n4. \u907f\u514d\u627f\u8bfa\u65e0\u6cd5\u5b9e\u73b0\u7684\u8d39\u7387\u6807\u51c6',
+    '\u89c4\u5219\u4e0d\u719f\u6089': '\u5ba2\u6237\u5bf9\u4ea4\u6613\u89c4\u5219\u4e0d\u719f\u6089\u5f15\u53d1\u7684\u6295\u8bc9\uff0c\u5efa\u8bae\uff1a\n1. \u8010\u5fc3\u89e3\u91ca\u76f8\u5173\u4ea4\u6613\u89c4\u5219\u548c\u6cd5\u5f8b\u4f9d\u636e\n2. \u63d0\u4f9b\u4e66\u9762\u89c4\u5219\u8bf4\u660e\u6750\u6599\n3. \u786e\u8ba4\u5ba2\u6237\u662f\u5426\u7b7e\u7f72\u8fc7\u76f8\u5173\u98ce\u9669\u544a\u77e5\u4e66\n4. \u5fc5\u8981\u65f6\u5efa\u8bae\u5ba2\u6237\u53c2\u52a0\u6295\u8d44\u8005\u6559\u80b2',
+    '\u670d\u52a1\u4f53\u9a8c\u5dee': '\u670d\u52a1\u4f53\u9a8c\u7c7b\u6295\u8bc9\uff0c\u5efa\u8bae\uff1a\n1. \u7b2c\u4e00\u65f6\u95f4\u81f4\u6b49\uff0c\u8868\u793a\u91cd\u89c6\n2. \u8be6\u7ec6\u4e86\u89e3\u5ba2\u6237\u4e0d\u6ee1\u7684\u5177\u4f53\u539f\u56e0\n3. \u627f\u8bfa\u6539\u8fdb\u5e76\u8ddf\u8fdb\u53cd\u9988\n4. \u5fc5\u8981\u65f6\u8f6c\u4ea4\u4e0a\u7ea7\u6216\u5408\u89c4\u90e8\u95e8\u5904\u7406',
+    '\u5408\u89c4\u7ecf\u8425': '\u5408\u89c4\u7c7b\u6848\u4f8b\u53c2\u8003\uff0c\u5efa\u8bae\uff1a\n1. \u4ed4\u7ec6\u786e\u8ba4\u5ba2\u6237\u6295\u8bc9\u6d89\u53ca\u7684\u5408\u89c4\u8fb9\u754c\n2. \u67e5\u9605\u516c\u53f8\u5185\u90e8\u76f8\u5173\u5236\u5ea6\u548c\u6d41\u7a0b\n3. \u5982\u6d89\u53ca\u76d1\u7ba1\u7ea2\u7ebf\uff0c\u53ca\u65f6\u4e0a\u62a5\u5408\u89c4\u90e8\u95e8\n4. \u6240\u6709\u6c9f\u901a\u7559\u6709\u4e66\u9762\u8bb0\u5f55',
+  };
+  var defaultTip = '\u5efa\u8bae\u5904\u7406\u6b65\u9aa4\uff1a\n1. \u5b8c\u6574\u8bb0\u5f55\u5ba2\u6237\u6295\u8bc9\u5185\u5bb9\n2. \u5bf9\u7167\u76f8\u5173\u89c4\u5219\u6761\u6b3e\u548c\u534f\u8bae\n3. \u5982\u6709\u4e89\u8bae\u53ca\u65f6\u4e0a\u62a5\u5408\u89c4\u90e8\u95e8\n4. \u4e66\u9762\u786e\u8ba4\u5904\u7406\u7ed3\u679c';
+  return tips[cat] || defaultTip;
+}
+
+// ========== UI ==========
+function fillExample(el) {
+  var text = el.textContent.replace(/^[^\u4e00-\u9fff]+/, '').trim();
+  document.getElementById('complaint').value = text;
+  document.getElementById('complaint').focus();
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function truncate(str, max) {
+  if (!str) return '';
+  return str.length > max ? str.slice(0, max) + '...' : str;
+}
+
+function scoreClass(score) {
+  if (score >= 25) return 'score-high';
+  if (score >= 10) return 'score-mid';
+  return 'score-low';
+}
+
+function doSearch() {
+  var complaint = document.getElementById('complaint').value.trim();
+  if (!complaint) { document.getElementById('complaint').focus(); return; }
+  var topK = parseInt(document.getElementById('topK').value);
+  var panel = document.getElementById('rightPanel');
+  panel.innerHTML = '<div class="loading-state"><div class="spinner"></div><div style="font-size:14px;color:#888">正在检索匹配...</div></div>';
+  setTimeout(function() {
+    var results = search(complaint, topK);
+    renderResult(results, complaint);
+    document.getElementById('statMatched').textContent = results.length;
+  }, 100);
+}
+
+function renderResult(results, complaint) {
+  var panel = document.getElementById('rightPanel');
+  if (results.length === 0) {
+    panel.innerHTML = '<div class="no-result"><div class="no-result-icon">🔍</div><div style="font-size:15px">未找到高度匹配案例</div><div style="font-size:13px;opacity:0.7">尝试用不同的关键词描述投诉内容</div></div>';
+    return;
+  }
+  var topCase = CASES[results[0].index];
+  var advice = generateAdvice(complaint, topCase);
+  var html = '<div class="result-container">';
+  html += '<div class="advice-card"><div class="advice-header">💡 处理参考建议</div><div class="advice-body">' + escHtml(advice) + '</div></div>';
+  html += '<div class="matches-title">📋 相关历史案例 <span class="matches-count">' + results.length + ' 条</span></div>';
+  for (var i = 0; i < results.length; i++) {
+    var m = CASES[results[i].index];
+    var pct = Math.round(results[i].score * 100);
+    var hasExpand = false;
+    html += '<div class="case-card" onclick="toggleCaseFlex(this)">';
+    html += '<div class="case-card-header">';
+    html += '<div class="score-badge ' + scoreClass(pct) + '"><div class="score-num">' + pct + '</div><div class="score-pct">相关度%</div></div>';
+    html += '<div class="case-info">';
+    html += '<div class="case-title">' + escHtml(m.title) + '</div>';
+    html += '<div class="case-tags">';
+    html += '<span class="tag tag-main">' + escHtml(m.main_category) + '</span>';
+    html += '<span class="tag tag-sub">' + escHtml(m.sub_category) + '</span>';
+    if (m.source) html += '<span class="tag tag-source">' + escHtml(m.source) + '</span>';
+    html += '</div></div></div>';
+    html += '<div class="case-card-body">';
+    if (m.summary) {
+      var needS = m.summary.length > 150; if (needS) hasExpand = true;
+      html += '<div class="case-section"><div class="case-section-label">案例摘要</div><div class="case-section-text">' + escHtml(truncate(m.summary, 150)) + '</div></div>';
+      if (needS) html += '<div class="case-full-text">' + escHtml(m.summary) + '</div>';
+    }
+    if (m.violation) {
+      var needV = m.violation.length > 120; if (needV) hasExpand = true;
+      html += '<div class="case-section"><div class="case-section-label">违规/投诉要点</div><div class="case-section-text">' + escHtml(truncate(m.violation, 120)) + '</div></div>';
+      if (needV) html += '<div class="case-full-text">' + escHtml(m.violation) + '</div>';
+    }
+    if (m.penalty) {
+      var needP = m.penalty.length > 100; if (needP) hasExpand = true;
+      html += '<div class="case-section"><div class="case-section-label">处理结果</div><div class="case-section-text penalty-text">' + escHtml(truncate(m.penalty, 100)) + '</div></div>';
+      if (needP) html += '<div class="case-full-text"><div class="case-section-label-full">处理结果（全文）</div><div class="case-section-text penalty-text">' + escHtml(m.penalty) + '</div></div>';
+    }
+    if (m.full_text && m.full_text.trim()) {
+      hasExpand = true;
+      html += '<div class="case-full-text"><div class="case-section-label-full">📄 公告全文</div><div class="case-section-text case-fulltext-content">' + escHtml(m.full_text) + '</div></div>';
+    }
+    if (m.url && m.url.trim()) {
+      var isAbs = m.url.indexOf('http') === 0;
+      var showUrl = isAbs ? m.url : 'https://mp.weixin.qq.com' + m.url;
+      html += '<a class="case-source-link" href="' + escHtml(showUrl) + '" target="_blank" rel="noopener" onclick="event.stopPropagation();" title="在新窗口打开原始页面">🔗 查看原文</a>';
+    }
+    if (hasExpand) html += '<button class="case-expand-btn" onclick="event.stopPropagation(); toggleCaseFlex(this.closest(\'.case-card\'));">展开全文 ▾</button>';
+    html += '</div></div>';
+  }
+  html += '</div>';
+  html += '<div style="text-align:center; padding: 20px 0;"><button onclick="showHotNews()" style="background:none;border:1px solid #ddd;border-radius:8px;padding:8px 20px;font-size:13px;color:#888;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor=\'#e94560\';this.style.color=\'#e94560\'" onmouseout="this.style.borderColor=\'#ddd\';this.style.color=\'#888\'">🔥 返回热点速递</button></div>';
+  panel.innerHTML = html;
+}
+
+function toggleCaseFlex(el) {
+  var fullTexts = el.querySelectorAll('.case-full-text');
+  var btn = el.querySelector('.case-expand-btn');
+  var isOpen = fullTexts.length > 0 && fullTexts[0].classList.contains('show');
+  for (var i = 0; i < fullTexts.length; i++) {
+    if (isOpen) { fullTexts[i].classList.remove('show'); }
+    else { fullTexts[i].classList.add('show'); }
+  }
+  if (btn) btn.textContent = isOpen ? '展开全文 ▾' : '收起全文 ▴';
+}
+
+function showCaseDetail(idx) {
+  var c = CASES[idx];
+  var panel = document.getElementById('rightPanel');
+  if (!c) return;
+  var html = '<div style="padding:24px;overflow-y:auto;max-height:100%;">';
+  html += '<button onclick="showHotNews()" style="background:none;border:1px solid #ddd;border-radius:8px;padding:6px 14px;font-size:12px;color:#888;cursor:pointer;margin-bottom:16px;transition:all 0.2s;" onmouseover="this.style.borderColor=\'#e94560\';this.style.color=\'#e94560\'" onmouseout="this.style.borderColor=\'#ddd\';this.style.color=\'#888\'">← 返回热点速递</button>';
+  html += '<h2 style="font-size:18px;color:#1a1a2e;line-height:1.5;margin-bottom:12px;">' + escHtml(c.title) + '</h2>';
+  html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">';
+  html += '<span style="font-size:12px;color:#999;">' + (c.publish_date || '未知日期') + '</span>';
+  if (c.source) html += '<span style="font-size:12px;background:#f0f2f5;color:#666;padding:2px 8px;border-radius:4px;">' + escHtml(c.source) + '</span>';
+  if (c.main_category) html += '<span style="font-size:12px;background:#fff0f3;color:#e94560;padding:2px 8px;border-radius:4px;">' + escHtml(c.main_category) + '</span>';
+  if (c.sub_category) html += '<span style="font-size:12px;background:#eff6ff;color:#2563eb;padding:2px 8px;border-radius:4px;">' + escHtml(c.sub_category) + '</span>';
+  html += '</div>';
+  if (c.summary) html += '<div style="background:#f8f9fc;border-radius:10px;padding:14px 16px;margin-bottom:16px;"><div style="font-size:11px;font-weight:600;color:#aaa;letter-spacing:0.5px;margin-bottom:6px;">案例摘要</div><div style="font-size:14px;line-height:1.8;color:#444;">' + escHtml(c.summary) + '</div></div>';
+  if (c.violation) html += '<div style="background:#fff8ee;border-radius:10px;padding:14px 16px;margin-bottom:16px;"><div style="font-size:11px;font-weight:600;color:#f97316;letter-spacing:0.5px;margin-bottom:6px;">违规要点</div><div style="font-size:13px;line-height:1.8;color:#555;">' + escHtml(c.violation) + '</div></div>';
+  if (c.penalty) html += '<div style="background:#fef3c7;border-radius:10px;padding:14px 16px;margin-bottom:16px;"><div style="font-size:11px;font-weight:600;color:#d97706;letter-spacing:0.5px;margin-bottom:6px;">处理结果</div><div style="font-size:13px;line-height:1.8;color:#666;">' + escHtml(c.penalty) + '</div></div>';
+  if (c.full_text) html += '<div style="background:#fff;border:1px solid #e8eaf0;border-radius:10px;padding:14px 16px;margin-bottom:16px;"><div style="font-size:11px;font-weight:600;color:#aaa;letter-spacing:0.5px;margin-bottom:6px;">公告全文</div><div style="font-size:12px;line-height:1.8;color:#555;white-space:pre-line;">' + escHtml(c.full_text) + '</div></div>';
+  if (c.url && c.url.trim()) {
+    var absUrl = c.url.indexOf('http') === 0 ? c.url : c.url;
+    html += '<a href="' + escHtml(absUrl) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;font-size:13px;color:#2563eb;text-decoration:none;font-weight:500;">🔗 查看原文</a>';
+  }
+  html += '</div>';
+  panel.innerHTML = html;
+}
+
+// ========== 热点速递 ==========
+function getRecentCases(days) {
+  var cutoffStr = '';
+  if (days > 0) {
+    var cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    cutoffStr = cutoff.toISOString().slice(0, 10);
+  }
+  var recent = [];
+  CASES.forEach(function(c, idx) {
+    if (!days || (c.publish_date && c.publish_date >= cutoffStr)) {
+      recent.push({ index: idx, case: c });
+    }
+  });
+  recent.sort(function(a, b) {
+    return (b.case.publish_date || '').localeCompare(a.case.publish_date || '');
+  });
+  return recent;
+}
+
+function renderHotNews() {
+  var list = getRecentCases(0); // 0 = 全部案例
+  var container = document.getElementById('hotNewsList');
+  var countEl = document.getElementById('hotCount');
+  if (!container) return;
+
+  if (list.length === 0) {
+    container.innerHTML = '<div class="hot-empty">暂无近期案例，请关注中期协最新公告</div>';
+    if (countEl) countEl.textContent = '';
+    return;
+  }
+
+  var now = new Date();
+  var weekAgo = new Date(now);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  var weekAgoStr = weekAgo.toISOString().slice(0, 10);
+
+  if (countEl) countEl.textContent = '全部 ' + list.length + ' 条';
+
+  var html = '';
+  list.forEach(function(item, i) {
+    var c = item.case;
+    var isNew = c.publish_date && c.publish_date >= weekAgoStr;
+    var numberClass = i < 3 ? '' : ' old';
+    html += '<div class="hot-news-item" onclick="showCaseDetail(' + item.index + ')" title="点击查看案例详情">';
+    html += '<div class="hot-news-item-header">';
+    html += '<div class="hot-news-item-number' + numberClass + '">' + (i + 1) + '</div>';
+    html += '<div class="hot-news-item-info">';
+    html += '<div class="hot-news-item-title">' + escHtml(c.title) + '</div>';
+    html += '<div class="hot-news-item-meta">';
+    html += '<span>' + (c.publish_date || '未知') + '</span>';
+    if (isNew) html += '<span class="new-badge">NEW</span>';
+    if (c.source) html += '<span class="tag-sm">' + escHtml(c.source) + '</span>';
+    if (c.main_category) html += '<span class="tag-sm">' + escHtml(c.main_category) + '</span>';
+    html += '</div></div></div>';
+    if (c.summary) html += '<div class="hot-news-item-desc">' + escHtml(c.summary.slice(0, 120)) + '</div>';
+    html += '</div>';
+  });
+  container.innerHTML = html;
+}
+
+function showHotNews() {
+  var panel = document.getElementById('rightPanel');
+  panel.innerHTML = '<div class="hot-section" style="padding:24px;">' +
+    '<div class="hot-section-header">🔥 热点速递<span class="hot-count" id="hotCount"></span></div>' +
+    '<div class="hot-news-list" id="hotNewsList"><div style="text-align:center;color:#aaa;padding:40px;">加载中...</div></div>' +
+    '</div>';
+  renderHotNews();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('caseCount').textContent = CASES.length + '条案例';
+  document.getElementById('statTotal').textContent = CASES.length;
+  document.getElementById('complaint').addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'Enter') doSearch();
+  });
+  // 初始化热点速递
+  renderHotNews();
+});
+</script>
+
+</body>
+</html>
