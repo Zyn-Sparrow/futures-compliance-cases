@@ -10,6 +10,7 @@ Netlify部署脚本
 import os
 import sys
 import time
+import hashlib
 import requests
 import json
 
@@ -47,17 +48,11 @@ def deploy_to_netlify(html_path, site_id=None, auth_token=None):
 
     print(f"开始部署到Netlify (站点: {site_id})...")
 
-    # 步骤1: 创建新部署
-    deploy_headers = {
-        "Authorization": f"Bearer {auth_token}",
-        "Content-Type": "application/zip",
-    }
+    # 计算文件SHA1
+    file_sha1 = hashlib.sha1(file_content).hexdigest()
+    file_path_web = f"/{file_name}"  # Netlify API要求的路径格式
 
-    # 使用Netlify的file deploy API (直接上传单个文件)
-    # POST /sites/{site_id}/deploys
-    # 然后上传文件到 /deploys/{deploy_id}/files/{file_path}
-
-    # 创建deploy
+    # 步骤1: 创建部署（声明文件）
     create_url = f"{NETLIFY_API}/sites/{site_id}/deploys"
     create_resp = requests.post(
         create_url,
@@ -65,7 +60,10 @@ def deploy_to_netlify(html_path, site_id=None, auth_token=None):
             "Authorization": f"Bearer {auth_token}",
             "Content-Type": "application/json",
         },
-        json={"title": f"Weekly Update - {time.strftime('%Y-%m-%d %H:%M')}"},
+        json={
+            "files": {file_path_web: file_sha1},
+            "title": f"Weekly Update - {time.strftime('%Y-%m-%d %H:%M')}",
+        },
         timeout=30,
     )
 
@@ -76,24 +74,29 @@ def deploy_to_netlify(html_path, site_id=None, auth_token=None):
     deploy_id = deploy_data["id"]
     print(f"  创建部署成功 (ID: {deploy_id})")
 
-    # 上传文件
-    upload_url = f"{NETLIFY_API}/deploys/{deploy_id}/files/{file_name}"
-    upload_headers = {
-        "Authorization": f"Bearer {auth_token}",
-        "Content-Type": "application/octet-stream",
-    }
+    # 检查是否需要上传文件
+    required = deploy_data.get("required", [])
+    if file_sha1 in required:
+        # 上传文件
+        upload_url = f"{NETLIFY_API}/deploys/{deploy_id}/files{file_path_web}"
+        upload_headers = {
+            "Authorization": f"Bearer {auth_token}",
+            "Content-Type": "application/octet-stream",
+        }
 
-    upload_resp = requests.put(
-        upload_url,
-        headers=upload_headers,
-        data=file_content,
-        timeout=60,
-    )
+        upload_resp = requests.put(
+            upload_url,
+            headers=upload_headers,
+            data=file_content,
+            timeout=60,
+        )
 
-    if upload_resp.status_code not in (200, 201):
-        raise Exception(f"上传文件失败: HTTP {upload_resp.status_code} - {upload_resp.text}")
+        if upload_resp.status_code not in (200, 201):
+            raise Exception(f"上传文件失败: HTTP {upload_resp.status_code} - {upload_resp.text}")
 
-    print(f"  文件上传成功 ({len(file_content)} 字节)")
+        print(f"  文件上传成功 ({len(file_content)} 字节)")
+    else:
+        print(f"  文件未变化，跳过上传")
 
     # 等待部署完成
     print("  等待部署处理...")
